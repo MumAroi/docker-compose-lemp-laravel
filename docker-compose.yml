@@ -1,0 +1,96 @@
+version: '3.8'
+
+# Services
+services:
+
+  # Nginx Service
+  nginx:
+    image: nginx:1.19-alpine
+    container_name: nginx
+    restart: always
+    ports:
+      - 80:80
+    volumes:
+      - phpmyadmin_data:/var/www/phpmyadmin
+      - ./php-project-code:/var/www/html/
+      - ./docker/nginx/logs/:/var/log/nginx
+      - ./docker/nginx/config/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/config/conf.d/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/config/conf.d/phpmyadmin.conf:/etc/nginx/conf.d/phpmyadmin.conf
+      - ./docker/nginx/config/conf.d/sitename.conf:/etc/nginx/conf.d/sitename.conf
+    networks:
+      mynet:
+        aliases: 
+          - sitename.loc
+    depends_on:
+      - php-fpm8
+      - php-fpm7
+      - phpmyadmin
+
+  # PHP-FPM Service
+  php-fpm8:
+    build: ./docker/php-fpm8
+    container_name: php-fpm8
+    restart: always
+    volumes:
+      - ./php-project-code:/var/www/html/
+      - ./php-project-code/sitename:/var/www/html/sitename
+    networks:
+      - mynet
+    depends_on:
+      - mariadb
+
+  php-fpm7:
+    build: ./docker/php-fpm7
+    container_name: php-fpm7
+    restart: always
+    volumes:
+      - ./php-project-code/sitename:/var/www/html/sitename
+    networks:
+      - mynet
+    depends_on:
+      - mariadb
+
+  # Mariadb Service
+  mariadb:
+    image: mariadb:10.5
+    container_name: mariadb
+    restart: always
+    volumes:
+      - ./docker/mariadb/init:/docker-entrypoint-initdb.d:ro
+      - ./docker/mariadb/my.cnf:/etc/mysql/conf.d/my.cnf:ro
+      - mariadb_data:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}              
+    networks:
+      - mynet
+
+  # PhpMyAdmin Service
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5
+    # image: phpmyadmin/phpmyadmin:fpm-alpine
+    container_name: phpmyadmin
+    restart: always
+    volumes:
+      - ./docker/phpmyadmin/config/config.user.inc.php:/etc/phpmyadmin/config.user.inc.php:ro
+      - phpmyadmin_data:/var/www/html/
+      - /sessions
+    ports:
+      - 8080:80
+    environment:
+      PMA_HOST: mariadb
+      PMA_ARBITRARY: 1
+    networks:
+      - mynet
+    depends_on:
+      - mariadb
+
+volumes:
+  mariadb_data:
+  phpmyadmin_data:
+
+networks:
+  mynet:
