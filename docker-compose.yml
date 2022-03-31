@@ -33,23 +33,29 @@ services:
     container_name: php-fpm8
     restart: always
     volumes:
+      - ./docker/php-fpm8/config/php.ini:/usr/local/etc/php/conf.d/php.ini
+      - ./docker/php-fpm8/config/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini
       - ./php-project-code:/var/www/html/
       - ./php-project-code/sitename:/var/www/html/sitename
     networks:
       - mynet
     depends_on:
       - mariadb
+      - redis
 
   php-fpm7:
     build: ./docker/php-fpm7
     container_name: php-fpm7
     restart: always
     volumes:
+      - ./docker/php-fpm7/config/php.ini:/usr/local/etc/php/conf.d/php.ini
+      - ./docker/php-fpm7/config/opcache.ini:/usr/local/etc/php/conf.d/opcache.ini
       - ./php-project-code/sitename:/var/www/html/sitename
     networks:
       - mynet
     depends_on:
       - mariadb
+      - redis
 
   # Mariadb Service
   mariadb:
@@ -87,10 +93,26 @@ services:
       - mynet
     depends_on:
       - mariadb
+  
+  redis:
+    image: redis:6.2.6-alpine
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      # - redis.conf:/usr/local/etc/redis/redis.conf
+      - redis_data:/data
+    environment :
+      - appendonly=yes
+      # - requirepass=123456
+    networks:
+      - mynet
 
 volumes:
   mariadb_data:
   phpmyadmin_data:
+  redis_data:
 
 networks:
   mynet:
